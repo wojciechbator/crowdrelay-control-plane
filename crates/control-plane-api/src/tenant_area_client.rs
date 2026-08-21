@@ -218,6 +218,7 @@ fn valid_operations_request(method: &str, path: &str) -> bool {
                     | "/v1/control-plane/ecosystem/findings?limit=50&open_only=true"
                     | "/v1/control-plane/ecosystem/flags"
                     | "/v1/control-plane/autopilot/overview"
+                    | "/v1/control-plane/autopilot/growth"
             ) || uuid_segment_between(path, "/v1/control-plane/ops/deliveries/", "")
                 || timeline_segment(path)
         }

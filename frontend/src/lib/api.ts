@@ -1,5 +1,5 @@
 import { authState } from './auth'
-import type { AreaCity, AreaDropDetail, AreaDropDraft, AreaDropSummary, AreaOverview, AreaValidationResult, AuditEntry, AutopilotOverview, AutopilotPolicy, DeliveryDetails, DeliveryItem, EcosystemOverview, FeatureFlag, OperationTimeline, OperationsSummary, OutboxItem, Palette, ProvisioningJob, ReconciliationFinding, ReconciliationResult, RegionalProfile, RetryResult, TenantRuntimeSnapshot, TenantSummary } from './types'
+import type { AreaCity, AreaDropDetail, AreaDropDraft, AreaDropSummary, AreaOverview, AreaValidationResult, AuditEntry, AutopilotOverview, AutopilotPolicy, DeliveryDetails, DeliveryItem, EcosystemOverview, FeatureFlag, GrowthOverview, OperationTimeline, OperationsSummary, OutboxItem, Palette, ProvisioningJob, ReconciliationFinding, ReconciliationResult, RegionalProfile, RetryResult, TenantRuntimeSnapshot, TenantSummary } from './types'
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message) }
@@ -113,6 +113,7 @@ export const api = {
       expected_version: policy.version,
     }),
   }),
+  growthOverview: (slug: string) => request<GrowthOverview>(`/tenants/${encodeURIComponent(slug)}/operations/growth`),
   areaOverview: (slug: string) => request<AreaOverview>(`/tenants/${encodeURIComponent(slug)}/area`),
   areaSettings: (slug: string, enabled: boolean) => request<{enabled:boolean; entitled:boolean}>(`/tenants/${encodeURIComponent(slug)}/area/settings`, { method:'PATCH', body:JSON.stringify({enabled}) }),
   areaCities: (slug: string, q = '', limit = 30) => request<{items:AreaCity[]}>(`/tenants/${encodeURIComponent(slug)}/area/cities?q=${encodeURIComponent(q)}&limit=${limit}`),

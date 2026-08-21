@@ -68,6 +68,7 @@ pub fn router() -> Router<AppState> {
             "/tenants/{slug}/operations/autopilot",
             get(autopilot_overview),
         )
+        .route("/tenants/{slug}/operations/growth", get(autopilot_growth))
         .route(
             "/tenants/{slug}/operations/autopilot/{context}",
             post(update_autopilot),
@@ -555,6 +556,26 @@ async fn autopilot_overview(
     )
     .await?;
     object_no_store(value, "autopilot overview")
+}
+
+/// Delivery-side growth progress. Read-only: the Control Plane never claims or
+/// completes a delivery, so no idempotency key is involved.
+async fn autopilot_growth(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let (_, value) = call(
+        &state,
+        &slug,
+        "GET",
+        "/v1/control-plane/autopilot/growth",
+        None,
+        &headers,
+        None,
+    )
+    .await?;
+    object_no_store(value, "autopilot growth")
 }
 
 #[derive(Debug, Deserialize)]

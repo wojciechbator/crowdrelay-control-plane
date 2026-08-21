@@ -6,6 +6,7 @@ import type { Palette, ProvisioningJob } from '../lib/types'
 import { StatusBadge } from '../components/StatusBadge'
 import { RegionalProfilePanel } from '../components/RegionalProfilePanel'
 import { OperationsPanel } from '../components/OperationsPanel'
+import { GrowthPanel } from '../components/GrowthPanel'
 import { TenantRuntimePanel } from '../components/TenantRuntimePanel'
 
 const paletteFields: Array<keyof Palette> = ['primary','primaryContrast','accent','surface','surfaceElevated','text','textMuted','success','warning','danger']
@@ -105,6 +106,7 @@ export function TenantPage() {
         </article>
       </div>
       <OperationsPanel slug={t.slug} runtimeHealth={t.runtimeHealth} enabled={t.status === 'active'} />
+      <GrowthPanel slug={t.slug} enabled={t.status === 'active'} />
       <RegionalProfilePanel tenant={t} />
       <article class="panel"><div class="section-title"><div><span class="eyebrow">BRANDING</span><h2>CrowdRelay + Signal palette</h2></div>{t.brandingPalette ? <button class="ghost" onClick={() => branding.mutate(null)}>Reset to product defaults</button> : <StatusBadge status="Inherits current product defaults" />}</div><Show when={t.brandingPalette || editingPalette()} fallback={<div class="inherit-card"><p>No palette is stored for this tenant. CrowdRelay and Signal therefore keep their own current default colors with zero theming lookup required.</p><button class="ghost" onClick={() => setEditingPalette(true)}>Create custom palette</button></div>}><div class="palette-grid"><For each={paletteFields}>{field => <label>{field}<div class="color-input"><input type="color" value={palette()[field]} onInput={(e) => setPalette(current => ({ ...current, [field]: e.currentTarget.value }))}/><code>{palette()[field]}</code></div></label>}</For></div><button onClick={() => branding.mutate(palette())} disabled={branding.isPending}>Save custom palette</button></Show></article>
 

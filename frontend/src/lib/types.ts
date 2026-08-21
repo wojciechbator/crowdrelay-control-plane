@@ -348,3 +348,46 @@ export type AutopilotOverview = {
   release_ledger: ReleaseLedgerOverview
   rum_metrics_24h: RumMetric[]
 }
+
+export type GrowthCampaignProgress = {
+  campaign_id: string
+  slug: string
+  name: string
+  template_key: string
+  status: string
+  scheduled_at: string | null
+  completed_at: string | null
+  recipient_count: number
+  delivered_count: number
+  failed_count: number
+  claimed_count: number
+  pending_count: number
+  stalled: boolean
+}
+
+export type GrowthDeliveryTotals = {
+  scheduled_campaigns: number
+  completed_campaigns: number
+  cancelled_campaigns: number
+  delivered: number
+  failed: number
+  pending: number
+  claimed: number
+  stalled_campaigns: number
+}
+
+export type GrowthOutreachSummary = {
+  active_opportunities: number
+  playlist_opportunities: number
+  awaiting_reply: number
+  replies_14d: number
+  eligible_playlist_targets: number
+  suppressed_targets: number
+}
+
+export type GrowthOverview = {
+  campaigns_enabled: boolean
+  totals: GrowthDeliveryTotals
+  outreach: GrowthOutreachSummary
+  campaigns: GrowthCampaignProgress[]
+}
