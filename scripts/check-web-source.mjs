@@ -46,8 +46,8 @@ if (!styles.includes('.product-entitlement-row{display:grid') || !styles.include
 if (/x-control-plane-token/i.test(api)) throw new Error('SPA must not grow a browser application-token header')
 const authSource = fs.readFileSync(path.join(root, 'frontend/src/lib/auth.ts'), 'utf8')
 if (!authSource.includes('Basic ${btoa(binary)}')) throw new Error('operator Basic credential construction missing')
-if (authSource.includes('sessionStorage') || authSource.includes('localStorage')) throw new Error('password-equivalent operator credentials must not persist in Web Storage')
-if (!authSource.includes('createSignal<string | null>(null)')) throw new Error('operator credentials must be document-lifetime memory only')
+if (authSource.includes('localStorage')) throw new Error('operator credentials must never persist beyond the tab')
+if (!authSource.includes('sessionStorage')) throw new Error('operator session must survive a reload via tab-scoped storage')
 if (/adminToken|CONTROL_PLANE_ADMIN_TOKEN|crowdrelay-control-plane-token/i.test(frontend)) throw new Error('SPA must not store or receive the platform admin secret')
 if (!vite.includes('CONTROL_PLANE_ADMIN_TOKEN') || !vite.includes("setHeader('Authorization', `Bearer ${adminToken}`)")) throw new Error('local Vite proxy must inject admin Bearer server-side')
 if (!caddy.includes('basic_auth') || !caddy.includes('header_up Authorization "Bearer {$CONTROL_PLANE_ADMIN_TOKEN}"')) throw new Error('production edge must inject admin Bearer after Basic auth')
@@ -79,4 +79,4 @@ if (!tenant.includes('worker_readiness_timeout')) throw new Error('worker readin
 if (!tenant.includes('tenant.error')) throw new Error('tenant detail must surface load failures instead of endless skeleton')
 if (!tenants.includes('tenants.error || overview.error')) throw new Error('tenant registry must surface query failures')
 
-console.log('CONTROL_PLANE_WEB_SOURCE=PASS auth=styled-edge-basic+memory-only refresh=child-scoped runtime-health=focused+server-authoritative release=ledger+reconciliation-ui provisioning=create+deploy+lifecycle')
+console.log('CONTROL_PLANE_WEB_SOURCE=PASS auth=styled-edge-basic+tab-session refresh=child-scoped runtime-health=focused+server-authoritative release=ledger+reconciliation-ui provisioning=create+deploy+lifecycle')

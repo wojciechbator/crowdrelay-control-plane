@@ -39,7 +39,7 @@ export const LoginGate: Component<{ children: JSX.Element }> = (props) => {
           <Show when={error()}><div class="login-error" role="alert">{error()}</div></Show>
           <button type="submit" disabled={busy() || !username().trim() || !password()}>{busy() ? 'Logowanie…' : 'Zaloguj się'}</button>
         </form>
-        <div class="login-security"><span class="auth-dot ok"/><span>Dane logowania są trzymane wyłącznie w pamięci tej strony i nie trafiają do Web Storage. Po pełnym odświeżeniu trzeba zalogować się ponownie.</span></div>
+        <div class="login-security"><span class="auth-dot ok"/><span>Dane logowania zostają w tej karcie i nie trafiają do trwałego magazynu przeglądarki. Odświeżenie nie wylogowuje; zamknięcie karty tak.</span></div>
       </section>
     </main>
   }>{props.children}</Show>
