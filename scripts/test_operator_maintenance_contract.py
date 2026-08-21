@@ -101,7 +101,9 @@ class OperatorMaintenanceContract(unittest.TestCase):
         self.assertIn("fetchOperationsAttention", ATTENTION_API)
 
     def test_operator_attention_uses_one_periodic_snapshot(self) -> None:
-        self.assertIn("tokio::try_join!", ATTENTION_ROUTES)
+        # One poll in the browser, one tenant call behind it.
+        self.assertIn("/v1/control-plane/ops/attention", ATTENTION_ROUTES)
+        self.assertEqual(ATTENTION_ROUTES.count("request_management("), 1)
         self.assertEqual(UI.count("refetchInterval: 30_000"), 1)
         self.assertNotIn("refetchInterval: 15_000", UI)
         self.assertIn("fetchOperationsAttention", UI)

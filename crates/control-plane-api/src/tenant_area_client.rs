@@ -212,6 +212,7 @@ fn valid_operations_request(method: &str, path: &str) -> bool {
             matches!(
                 path,
                 "/v1/control-plane/ops/summary"
+                    | "/v1/control-plane/ops/attention"
                     | "/v1/control-plane/ops/outbox?status=dead&limit=50"
                     | "/v1/control-plane/ops/deliveries?status=dead&limit=50"
                     | "/v1/control-plane/ecosystem/overview"

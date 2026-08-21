@@ -31,9 +31,16 @@ class OperatorAttentionContract(unittest.TestCase):
         self.assertNotIn("refetchInterval: 15_000", page)
         self.assertIn("fetchOperationsAttention", page)
         self.assertIn("/operations/attention", attention)
-        self.assertIn("tokio::try_join!", route)
-        self.assertIn("/v1/control-plane/ops/summary", route)
-        self.assertIn("/v1/control-plane/ecosystem/findings?limit=50&open_only=true", route)
+        # One tenant call, not a five-way fan-out: CrowdRelay assembles the
+        # snapshot itself, so a slow section cannot stall four other tunnel
+        # requests. Fanning out again would silently reintroduce that.
+        self.assertIn("/v1/control-plane/ops/attention", route)
+        self.assertEqual(route.count("request_management("), 1)
+        self.assertNotIn("tokio::try_join!", route)
+        # The sections are still re-projected, so an upstream field addition
+        # cannot leak into the Control Plane contract unreviewed.
+        for part in ("summary", "dead_outbox", "dead_deliveries", "ecosystem", "findings"):
+            self.assertIn(f'"{part}"', route)
         self.assertIn("Usuń stare dead queues", page)
         self.assertIn("Potwierdź cleanup", page)
         self.assertIn("api.clearDeadDeliveries", page)
