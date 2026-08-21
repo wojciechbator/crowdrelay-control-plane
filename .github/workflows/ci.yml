@@ -150,7 +150,9 @@ jobs:
             mkdir -p image-digest
             printf 'CONTROL_PLANE_RELEASE_SHA=%s\nCONTROL_PLANE_IMAGE_DIGEST=%s\n' \
               "$GITHUB_SHA" "$digest" > image-digest/image.env
-            sha256sum image-digest/image.env > image-digest/image.env.sha256
+            # upload-artifact flattens image-digest/ away, so the checksum has to
+            # name the file as it appears in the download, not as it sits here.
+            ( cd image-digest && sha256sum image.env > image.env.sha256 )
           else
             docker buildx build \
               --platform linux/amd64 \

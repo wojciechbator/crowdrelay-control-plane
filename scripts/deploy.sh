@@ -63,9 +63,20 @@ wait_for_ci() {
         rm -rf -- "$artifact_dir"
         fail 'image digest artifact is incomplete'
       }
-      (cd "$artifact_dir" && sha256sum -c image.env.sha256 >/dev/null) || {
+      # Older artifacts recorded the checksum from the CI workspace, where the
+      # file sat under image-digest/; upload-artifact flattens that directory
+      # away, so `sha256sum -c` chases a path the download does not contain.
+      # Compare the recorded digest against the file itself: identical
+      # integrity guarantee, independent of where the checksum was generated.
+      expected_sum="$(awk 'NR==1 {print $1}' "$artifact_dir/image.env.sha256")"
+      actual_sum="$(sha256sum "$artifact_dir/image.env" | awk '{print $1}')"
+      [[ "$expected_sum" =~ ^[0-9a-f]{64}$ ]] || {
         rm -rf -- "$artifact_dir"
-        fail 'image digest artifact checksum failed'
+        fail 'image digest artifact checksum is malformed'
+      }
+      [[ "$expected_sum" == "$actual_sum" ]] || {
+        rm -rf -- "$artifact_dir"
+        fail "image digest artifact checksum failed: recorded=$expected_sum actual=$actual_sum"
       }
       release_sha="$(sed -n 's/^CONTROL_PLANE_RELEASE_SHA=//p' "$artifact_dir/image.env")"
       digest="$(sed -n 's/^CONTROL_PLANE_IMAGE_DIGEST=//p' "$artifact_dir/image.env")"
