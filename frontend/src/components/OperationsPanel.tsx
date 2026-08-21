@@ -55,6 +55,20 @@ const releaseLabel = (overview: AutopilotOverview | undefined) => {
   const tone = releaseTone(overview)
   return tone === 'good' ? 'converged' : tone === 'warn' ? 'incomplete' : tone === 'bad' ? 'drift detected' : 'loading'
 }
+// "missing" is a real gap, not a placeholder: nothing has ever posted that
+// component's production receipt. Name the reporter so the operator knows
+// which pipeline to look at instead of guessing.
+const MISSING_RELEASE_CAUSE: Record<string, string> = {
+  'crowdrelay-api': 'crowdrelayctl deploy has not reported a receipt (needs CROWDRELAY_LEDGER_COMMERCE_API_KEY).',
+  'crowdrelay-worker': 'crowdrelayctl deploy has not reported a receipt (needs CROWDRELAY_LEDGER_COMMERCE_API_KEY).',
+  'virya-www': 'virya build.yml has not published a production receipt since the last deploy.',
+  synesthesia: 'synesthesia deploy-web.yml has not published a production receipt since the last deploy.',
+  'virya-signal': 'virya-signal mobile-release.yml has not published a production receipt since the last release.',
+  n8n: 'scripts/publish-n8n-heartbeat.sh has not run against production yet.',
+}
+const missingReleaseCause = (key: string) =>
+  MISSING_RELEASE_CAUSE[key] ?? 'No production release receipt reported yet.'
+
 const releaseObserved = (value: string) => {
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? 'unknown time' : parsed.toLocaleString()
@@ -264,7 +278,7 @@ export function OperationsPanel(props: { slug: string; runtimeHealth: RuntimeHea
             <For each={ledger().missing_components}>{componentKey => <div class="flag-row release-component-row release-component-missing">
               <div>
                 <strong>{componentKey}</strong>
-                <small>No production release receipt reported yet.</small>
+                <small>{missingReleaseCause(componentKey)}</small>
               </div>
               <div class="row-health"><StatusBadge status="missing" tone="warn" /></div>
             </div>}</For>
