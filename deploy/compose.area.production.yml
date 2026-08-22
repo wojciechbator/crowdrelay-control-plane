@@ -4,6 +4,13 @@ services:
       CONTROL_PLANE_AREA_MANAGEMENT_MASTER_KEY: "${CONTROL_PLANE_AREA_MANAGEMENT_MASTER_KEY:?CONTROL_PLANE_AREA_MANAGEMENT_MASTER_KEY required}"
       CONTROL_PLANE_MANAGEMENT_MASTER_KEY: "${CONTROL_PLANE_MANAGEMENT_MASTER_KEY:?CONTROL_PLANE_MANAGEMENT_MASTER_KEY required}"
       CONTROL_PLANE_VIRYA_MANAGEMENT_URL: "${CONTROL_PLANE_VIRYA_MANAGEMENT_URL:?CONTROL_PLANE_VIRYA_MANAGEMENT_URL required}"
+    networks:
+      internal: {}
+      # Shared with the CrowdRelay compose project on the same host. The edge
+      # reaches the plane by this alias, and the area tunnel reaches the
+      # management proxy over it. Both used to cross an overlay network.
+      area-management:
+        aliases: [control-plane]
 
   virya-area-tunnel:
     image: caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
@@ -39,3 +46,8 @@ services:
     pids_limit: 64
     mem_limit: 64m
     cpus: 0.10
+
+networks:
+  area-management:
+    external: true
+    name: ${VIRYA_EDGE_NETWORK:-virya-edge}
