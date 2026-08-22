@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-HOME_HOST="${CONTROL_PLANE_DEPLOY_HOST:-virya-home}"
+HOME_HOST="${CONTROL_PLANE_DEPLOY_HOST:-virya-crowdrelay}"
 HOME_DIR="${CONTROL_PLANE_DEPLOY_REMOTE_DIR:-/srv/crowdrelay-control-plane}"
 AREA_SOURCE="$ROOT_DIR/deploy/compose.area.production.yml"
 CADDY_SOURCE="$ROOT_DIR/deploy/virya-area-tunnel.Caddyfile"

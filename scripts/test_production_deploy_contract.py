@@ -22,7 +22,7 @@ class ProductionDeployContract(unittest.TestCase):
 
     def test_mac_deploy_is_exact_registry_based_and_fail_closed(self):
         text = SCRIPT.read_text()
-        self.assertIn('CONTROL_PLANE_DEPLOY_HOST:-virya-home', text)
+        self.assertIn('CONTROL_PLANE_DEPLOY_HOST:-virya-crowdrelay', text)
         self.assertIn('production deploy must run from main', text)
         self.assertIn('origin/main mismatch', text)
         self.assertIn('CONTROL_PLANE_IMAGE_DIGEST', text)

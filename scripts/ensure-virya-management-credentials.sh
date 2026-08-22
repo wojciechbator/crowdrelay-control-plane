@@ -4,9 +4,9 @@ umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 MODE="${1:---check}"
-HOME_HOST="${CONTROL_PLANE_DEPLOY_HOST:-virya-home}"
+HOME_HOST="${CONTROL_PLANE_DEPLOY_HOST:-virya-crowdrelay}"
 HOME_DIR="${CONTROL_PLANE_DEPLOY_REMOTE_DIR:-/srv/crowdrelay-control-plane}"
-ORACLE_HOST="${CONTROL_PLANE_VIRYA_ORACLE_HOST:-virya-oracle}"
+ORACLE_HOST="${CONTROL_PLANE_VIRYA_ORACLE_HOST:-virya-crowdrelay}"
 ORACLE_DIR="${CONTROL_PLANE_VIRYA_ORACLE_DIR:-/opt/crowdrelay}"
 LOCAL_PAYLOAD=""
 REMOTE_PAYLOAD=""
