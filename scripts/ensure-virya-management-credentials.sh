@@ -45,6 +45,14 @@ done
 [[ "$(stat -c '%a' .env)" == "600" ]] || fail '.env must have mode 600'
 app="crowdrelay-control-plane-app-1"
 tunnel="crowdrelay-control-plane-virya-area-tunnel-1"
+# A host that has never run the control plane has nothing to verify yet, and
+# failing here deadlocks the first deploy: the gate demands a running app, and
+# the deploy that would start it never runs. Absent is a bootstrap state.
+# A container that exists but is not running is still a hard failure.
+if ! docker inspect "$app" >/dev/null 2>&1; then
+  printf 'BOOTSTRAP_REQUIRED=true reason=control-plane-app-absent\n'
+  exit 0
+fi
 [[ "$(docker inspect "$app" --format '{{.State.Status}}' 2>/dev/null || true)" == "running" ]] || fail 'Control Plane app is not running'
 [[ "$(docker inspect "$tunnel" --format '{{.State.Status}}' 2>/dev/null || true)" == "running" ]] || fail 'Control Plane tunnel is not running'
 runtime_env="$(docker inspect "$app" --format '{{range .Config.Env}}{{println .}}{{end}}')"
@@ -115,6 +123,12 @@ ORACLE_CHECK
 
 if [[ "$MODE" == "--check" ]]; then
   HOME_REPORT="$(home_check)" || fail 'Home management credential/E2E check failed'
+  if [[ "$HOME_REPORT" == BOOTSTRAP_REQUIRED=* ]]; then
+    # First deploy onto this host. The deploy itself brings the app up and its
+    # own post-deploy gates verify the result, so do not block here.
+    printf 'MANAGEMENT_CREDENTIALS=BOOTSTRAP %s\n' "$HOME_REPORT"
+    exit 0
+  fi
   ORACLE_REPORT="$(oracle_check)" || fail 'Oracle management credential check failed'
   area_expected="$(printf '%s\n' "$HOME_REPORT" | sed -n 's/^AREA_DERIVED_SHA256=//p')"
   management_expected="$(printf '%s\n' "$HOME_REPORT" | sed -n 's/^MANAGEMENT_DERIVED_SHA256=//p')"
