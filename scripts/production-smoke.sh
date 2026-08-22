@@ -20,7 +20,19 @@ auth_body="$(mktemp)"
 cleanup() { rm -f "$root_headers" "$root_body" "$unauth_body" "$auth_body"; }
 trap cleanup EXIT
 
-root_status="$(request --dump-header "$root_headers" --output "$root_body" --write-out '%{http_code}' "$base/")"
+# The edge puts Basic Auth in front of the whole plane, the SPA shell
+# included, so the root probe has to authenticate. The proof that the edge
+# actually rejects anonymous callers is the unauthenticated API probe below.
+[[ -n "${CONTROL_PLANE_SMOKE_BASIC_AUTH:-}" ]] || {
+  echo 'CONTROL_PLANE_SMOKE=FAIL reason=CONTROL_PLANE_SMOKE_BASIC_AUTH-required' >&2
+  exit 2
+}
+[[ "$CONTROL_PLANE_SMOKE_BASIC_AUTH" == *:* ]] || {
+  echo 'CONTROL_PLANE_SMOKE=FAIL reason=invalid-secret-format' >&2
+  exit 2
+}
+root_status="$(request --user "$CONTROL_PLANE_SMOKE_BASIC_AUTH" \
+  --dump-header "$root_headers" --output "$root_body" --write-out '%{http_code}' "$base/")"
 [[ "$root_status" == 200 ]] || { echo "CONTROL_PLANE_ROOT=FAIL http=${root_status}" >&2; exit 1; }
 grep -Fqi '<!doctype html' "$root_body" || grep -Fqi '<html' "$root_body" || {
   echo 'CONTROL_PLANE_ROOT=FAIL reason=html-missing' >&2
@@ -41,31 +53,23 @@ unauth_status="$(request --output "$unauth_body" --write-out '%{http_code}' "$ba
 }
 echo 'CONTROL_PLANE_EDGE_AUTH=PASS unauthenticated=401'
 
-if [[ -n "${CONTROL_PLANE_SMOKE_BASIC_AUTH:-}" ]]; then
-  [[ "$CONTROL_PLANE_SMOKE_BASIC_AUTH" == *:* ]] || {
-    echo 'CONTROL_PLANE_AUTHENTICATED=FAIL reason=invalid-secret-format' >&2
-    exit 1
-  }
-  auth_status="$(request \
-    --user "$CONTROL_PLANE_SMOKE_BASIC_AUTH" \
-    --header 'accept: application/json' \
-    --output "$auth_body" --write-out '%{http_code}' \
-    "$base/api/v1/overview")"
-  [[ "$auth_status" == 200 ]] || {
-    echo "CONTROL_PLANE_AUTHENTICATED=FAIL http=${auth_status}" >&2
-    exit 1
-  }
-  jq -e '
-    (.tenants | type == "number")
-    and (.healthy | type == "number")
-    and (.degraded | type == "number")
-    and (.stale | type == "number")
-    and (.unknown | type == "number")
-    and (.runtimeStaleAfterSeconds | type == "number")
-  ' "$auth_body" >/dev/null
-  echo 'CONTROL_PLANE_AUTHENTICATED=PASS overview_contract=true'
-else
-  echo 'CONTROL_PLANE_AUTHENTICATED=SKIP reason=secret-not-configured'
-fi
+auth_status="$(request \
+  --user "$CONTROL_PLANE_SMOKE_BASIC_AUTH" \
+  --header 'accept: application/json' \
+  --output "$auth_body" --write-out '%{http_code}' \
+  "$base/api/v1/overview")"
+[[ "$auth_status" == 200 ]] || {
+  echo "CONTROL_PLANE_AUTHENTICATED=FAIL http=${auth_status}" >&2
+  exit 1
+}
+jq -e '
+  (.tenants | type == "number")
+  and (.healthy | type == "number")
+  and (.degraded | type == "number")
+  and (.stale | type == "number")
+  and (.unknown | type == "number")
+  and (.runtimeStaleAfterSeconds | type == "number")
+' "$auth_body" >/dev/null
+echo 'CONTROL_PLANE_AUTHENTICATED=PASS overview_contract=true'
 
 echo 'CONTROL_PLANE_PRODUCTION_SMOKE=PASS'
