@@ -104,9 +104,23 @@ jobs:
           cargo audit --ignore RUSTSEC-2023-0071
 
   container:
-    name: Build production container
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    name: Build production container (${{ matrix.arch }})
+    # linux/amd64 and linux/arm64 are both production targets, so each is built
+    # on its own native runner. QEMU cross-building a release Rust binary does
+    # not fit this job's budget, and an amd64-only release cannot be pulled by
+    # virya-crowdrelay.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -121,21 +135,26 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build exact linux/amd64 production image
+      - name: Build exact ${{ matrix.platform }} production image
         env:
           CACHE_WRITE: ${{ github.ref == 'refs/heads/main' }}
           PUBLISH_IMAGE: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
         shell: bash
         run: |
           set -euo pipefail
-          cache_args=(--cache-from type=gha,scope=control-plane-image)
+          cache_args=(--cache-from "type=gha,scope=control-plane-image-${ARCH}")
           if [[ "${CACHE_WRITE}" == "true" ]]; then
-            cache_args+=(--cache-to type=gha,mode=max,scope=control-plane-image)
+            cache_args+=(--cache-to "type=gha,mode=max,scope=control-plane-image-${ARCH}")
           fi
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/crowdrelay-control-plane:sha-${GITHUB_SHA}"
+          # Per-architecture tags only. The manifest list that production pins
+          # is assembled from them in the container-manifest job, so a release
+          # index can never exist with a platform missing.
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/crowdrelay-control-plane:sha-${GITHUB_SHA}-${ARCH}"
           if [[ "${PUBLISH_IMAGE}" == "true" ]]; then
             docker buildx build \
-              --platform linux/amd64 \
+              --platform "$PLATFORM" \
               --build-arg "VCS_REF=${GITHUB_SHA}" \
               "${cache_args[@]}" \
               --tag "$image" \
@@ -144,18 +163,9 @@ jobs:
             docker pull "$image" >/dev/null
             architecture="$(docker image inspect "$image" --format '{{.Architecture}}')"
             revision="$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
-            repo_digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
-            digest="${repo_digest##*@}"
-            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-            mkdir -p image-digest
-            printf 'CONTROL_PLANE_RELEASE_SHA=%s\nCONTROL_PLANE_IMAGE_DIGEST=%s\n' \
-              "$GITHUB_SHA" "$digest" > image-digest/image.env
-            # upload-artifact flattens image-digest/ away, so the checksum has to
-            # name the file as it appears in the download, not as it sits here.
-            ( cd image-digest && sha256sum image.env > image.env.sha256 )
           else
             docker buildx build \
-              --platform linux/amd64 \
+              --platform "$PLATFORM" \
               --build-arg "VCS_REF=${GITHUB_SHA}" \
               "${cache_args[@]}" \
               --tag crowdrelay-control-plane:ci \
@@ -163,13 +173,51 @@ jobs:
               .
             architecture="$(docker image inspect crowdrelay-control-plane:ci --format '{{.Architecture}}')"
             revision="$(docker image inspect crowdrelay-control-plane:ci --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
-            digest="not-published"
           fi
-          [[ "$architecture" == "amd64" ]]
+          [[ "$architecture" == "$ARCH" ]]
           [[ "$revision" == "$GITHUB_SHA" ]]
-          echo "CONTROL_PLANE_CONTAINER=PASS architecture=$architecture revision=$revision digest=$digest cache=gha write=${CACHE_WRITE} publish=${PUBLISH_IMAGE}"
+          echo "CONTROL_PLANE_CONTAINER=PASS architecture=$architecture revision=$revision cache=gha write=${CACHE_WRITE} publish=${PUBLISH_IMAGE}"
+
+  container-manifest:
+    name: Publish multi-platform manifest
+    needs: container
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Assemble and verify the release index
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/crowdrelay-control-plane:sha-${GITHUB_SHA}"
+          docker buildx imagetools create --tag "$image" "${image}-amd64" "${image}-arm64"
+          # An index missing a production platform is an undeployable release:
+          # virya-crowdrelay is linux/arm64 and cannot pull an amd64-only tag.
+          platforms="$(docker buildx imagetools inspect "$image" --raw \
+            | jq -r '[.manifests[] | select(.platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)"] | sort | join(",")')"
+          [[ "$platforms" == "linux/amd64,linux/arm64" ]] || {
+            echo "ERROR: release index platforms=$platforms" >&2
+            exit 1
+          }
+          digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          mkdir -p image-digest
+          printf 'CONTROL_PLANE_RELEASE_SHA=%s\nCONTROL_PLANE_IMAGE_DIGEST=%s\n' \
+            "$GITHUB_SHA" "$digest" > image-digest/image.env
+          # upload-artifact flattens image-digest/ away, so the checksum has to
+          # name the file as it appears in the download, not as it sits here.
+          ( cd image-digest && sha256sum image.env > image.env.sha256 )
+          echo "CONTROL_PLANE_MANIFEST=PASS platforms=$platforms digest=$digest"
       - name: Upload immutable image digest
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: control-plane-image-digest-${{ github.sha }}

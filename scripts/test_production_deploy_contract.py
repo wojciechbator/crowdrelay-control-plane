@@ -38,7 +38,12 @@ class ProductionDeployContract(unittest.TestCase):
         text = CI.read_text()
         self.assertIn('packages: write', text)
         self.assertIn('ghcr.io/${GITHUB_REPOSITORY_OWNER}/crowdrelay-control-plane:sha-${GITHUB_SHA}', text)
-        self.assertIn('--platform linux/amd64', text)
+        # Both production architectures must be built and merged into one
+        # release index; virya-crowdrelay is arm64 and virya-oracle is amd64.
+        for platform in ('linux/amd64', 'linux/arm64'):
+            self.assertIn(f'platform: {platform}', text)
+        self.assertIn('ubuntu-24.04-arm', text)
+        self.assertIn('docker buildx imagetools create --tag', text)
         self.assertIn('--build-arg "VCS_REF=${GITHUB_SHA}"', text)
         self.assertIn('--push', text)
         self.assertIn('CONTROL_PLANE_IMAGE_DIGEST=', text)

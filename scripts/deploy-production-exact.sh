@@ -257,7 +257,12 @@ image_id="$(docker image inspect "$registry_ref" --format '{{.Id}}')"
 architecture="$(docker image inspect "$image_id" --format '{{.Architecture}}')"
 revision="$(docker image inspect "$image_id" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
 repo_digests="$(docker image inspect "$image_id" --format '{{join .RepoDigests "\n"}}')"
-[[ "$architecture" == "amd64" ]] || fail "remote image architecture mismatch: $architecture"
+# The release tag is a multi-platform index, so the pull resolves to whatever
+# the deploy host runs. Assert that it matches this host rather than one fixed
+# architecture: amd64 on virya-oracle, arm64 on virya-crowdrelay.
+host_architecture="$(docker version --format '{{.Server.Arch}}')"
+[[ "$architecture" == "$host_architecture" ]] \
+  || fail "remote image architecture mismatch: image=$architecture host=$host_architecture"
 [[ "$revision" == "$target" ]] || fail "remote OCI revision mismatch: got=$revision expected=$target"
 grep -Fq "@${image_digest}" <<<"$repo_digests" || fail "pulled image digest mismatch: expected=$image_digest"
 ref="crowdrelay-control-plane:${new_tag}"
