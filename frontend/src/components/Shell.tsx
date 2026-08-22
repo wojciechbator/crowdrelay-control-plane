@@ -7,7 +7,7 @@ export const Shell: Component = () => (
   <LoginGate>
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand"><img class="brand-mark" src="/crowdrelay-brand-mark.png" alt="" width="36" height="36" /><div><strong>CrowdRelay</strong><small>Control Plane</small></div></div>
+        <div class="brand"><img class="brand-mark" src="/crowdrelay-brand-mark.png" alt="" width="36" height="36" style={{ transform: 'scale(1.12)' }} /><div><strong>CrowdRelay</strong><small>Control Plane</small></div></div>
         <nav>
           <Link to="/" activeProps={{ class: 'active' }}>Overview</Link>
           <Link to="/tenants" activeProps={{ class: 'active' }}>Tenants</Link>
